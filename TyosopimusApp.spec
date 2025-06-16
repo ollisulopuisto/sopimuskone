@@ -24,7 +24,6 @@ exe = EXE(
     [],
     name='TyosopimusApp',
     debug=False,
-    icon='assets/app_icon.icns',
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
@@ -40,6 +39,6 @@ exe = EXE(
 app = BUNDLE(
     exe,
     name='TyosopimusApp.app',
-    icon='assets/app_icon.icns',
+    icon=None,
     bundle_identifier=None,
 )
