@@ -57,6 +57,15 @@ jobs:
           ## Työsopimuskone ${{ github.ref_name }}
           
           ### Lataa macOS-sovellus
-          - Lataa `Työsopimuskone_macOS.zip`
+          - Lataa `TyosopimusKone_macOS.zip`
           - Pura zip-tiedosto
-          - Käynnistä `Työsopimus
+          - Käynnistä `TyosopimusKone`
+          
+          ### Ominaisuudet
+          - Luo suomalaisia työsopimuksia
+          - PDF-vienti
+          - Sopimusten tallennus ja lataus
+          - Live HTML -esikatselu
+          - Sopimuspäivämäärä-kenttä
+          
+          **Huom:** macOS saattaa varoittaa tuntemattomasta kehittäjästä. Klikkaa "Avaa silti" Järjestelmäasetuksista.
