@@ -57,6 +57,9 @@ logs/
 # Data files
 contracts.json
 test_contracts.json
+contracts/
 
 # pdf
 *.pdf
+test_backup/
+.venv
