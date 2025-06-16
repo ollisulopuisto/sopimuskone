@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='TyosopimusApp',
+    name='Työsopimuskone',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -34,12 +34,11 @@ exe = EXE(
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
-    icon='assets/app_icon.icns',
     entitlements_file=None,
 )
 app = BUNDLE(
     exe,
-    name='TyosopimusApp.app',
+    name='Työsopimuskone.app',
     icon='assets/app_icon.icns',
     bundle_identifier=None,
 )

@@ -31,12 +31,12 @@ jobs:
     - name: Build the application
       run: |
         source venv/bin/activate
-        pyinstaller --windowed --onefile --name TyosopimusApp --icon=assets/app_icon.icns main.py
+        pyinstaller TyosopimusApp.spec
         # List contents to verify what was created
         ls -la dist/
-        # Create a zip archive of the executable
+        # Create a zip archive of the .app bundle
         cd dist
-        zip TyosopimusKone_macOS.zip TyosopimusKone
+        zip -r Työsopimuskone_macOS.zip Työsopimuskone.app
         ls -la
         cd ..
 
@@ -44,32 +44,19 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: TyosopimusKone-macOS
-        path: dist/TyosopimusKone_macOS.zip
+        name: Työsopimuskone-macOS
+        path: dist/Työsopimuskone_macOS.zip
 
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          dist/TyosopimusKone_macOS.zip
+          dist/Työsopimuskone_macOS.zip
         body: |
           ## Työsopimuskone ${{ github.ref_name }}
           
           ### Lataa macOS-sovellus
-          - Lataa `TyosopimusKone_macOS.zip`
+          - Lataa `Työsopimuskone_macOS.zip`
           - Pura zip-tiedosto
-          - Käynnistä `TyosopimusKone`
-          
-          ### Ominaisuudet
-          - Luo suomalaisia työsopimuksia
-          - PDF-vienti
-          - Sopimusten tallennus ja lataus
-          - Live HTML -esikatselu
-          - Sopimuspäivämäärä-kenttä
-          
-          **Huom:** macOS saattaa varoittaa tuntemattomasta kehittäjästä. Klikkaa "Avaa silti" Järjestelmäasetuksista.
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          - Käynnistä `Työsopimus
