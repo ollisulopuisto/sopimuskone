@@ -30,7 +30,7 @@ from PyQt5.QtWidgets import (
     QScrollArea,
     QGroupBox,
     QCheckBox,  # Added QCheckBox
-    QMessageBox # Moved QMessageBox import here
+    QMessageBox, QRadioButton, QButtonGroup # Moved QMessageBox import here
 )
 from PyQt5.QtCore import Qt, QDate, QSize # Added QSize
 from PyQt5.QtGui import QPalette, QColor, QFont # Added QFont
@@ -164,13 +164,16 @@ class TyosopimusApp(QWidget):
         self.start_date_input.setStyleSheet(required_input_style)
         self.employment_details_layout.addRow(QLabel("Työ alkaa:").setStyleSheet(required_label_style) or QLabel("Työ alkaa:"), self.start_date_input)
         
-        # Contract type checkboxes
+        # Contract type radio buttons (replace checkboxes)
         contract_type_layout = QHBoxLayout()
-        self.permanent_contract_checkbox = QCheckBox("Toistaiseksi voimassa oleva työsopimus")
-        self.temporary_contract_checkbox = QCheckBox("Määräaikainen työsopimus")
-        self.permanent_contract_checkbox.setChecked(True)  # Default to permanent
-        contract_type_layout.addWidget(self.permanent_contract_checkbox)
-        contract_type_layout.addWidget(self.temporary_contract_checkbox)
+        self.permanent_contract_radio = QRadioButton("Toistaiseksi voimassa oleva työsopimus")
+        self.temporary_contract_radio = QRadioButton("Määräaikainen työsopimus")
+        self.permanent_contract_radio.setChecked(True)  # Default to permanent
+        self.contract_type_group = QButtonGroup()
+        self.contract_type_group.addButton(self.permanent_contract_radio)
+        self.contract_type_group.addButton(self.temporary_contract_radio)
+        contract_type_layout.addWidget(self.permanent_contract_radio)
+        contract_type_layout.addWidget(self.temporary_contract_radio)
         self.employment_details_layout.addRow(QLabel("Sopimuksen luonne:"), contract_type_layout)
         
         # Temporary contract fields (initially hidden)
@@ -198,9 +201,9 @@ class TyosopimusApp(QWidget):
         self.end_date_label.setVisible(False)
         self.end_date_input.setVisible(False)
         
-        # Connect checkboxes to toggle function
-        self.permanent_contract_checkbox.toggled.connect(self.toggle_contract_type)
-        self.temporary_contract_checkbox.toggled.connect(self.toggle_contract_type)
+        # Connect radio buttons to toggle function
+        self.permanent_contract_radio.toggled.connect(self.toggle_contract_type)
+        self.temporary_contract_radio.toggled.connect(self.toggle_contract_type)
         
         input_layout.addRow(employment_details_group)
 
@@ -329,8 +332,8 @@ class TyosopimusApp(QWidget):
         self.start_date_input.dateChanged.connect(self.update_preview)
         self.end_date_input.dateChanged.connect(self.update_preview)
         self.contract_date_input.dateChanged.connect(self.update_preview) # Added for contract_date
-        self.permanent_contract_checkbox.toggled.connect(self.update_preview)
-        self.temporary_contract_checkbox.toggled.connect(self.update_preview)
+        self.permanent_contract_radio.toggled.connect(self.update_preview)
+        self.temporary_contract_radio.toggled.connect(self.update_preview)
         self.collective_agreement_checkbox.toggled.connect(self.update_preview)
         self.muut_ehdot_input.textChanged.connect(self.update_preview)
 
@@ -366,11 +369,10 @@ class TyosopimusApp(QWidget):
         :return: dict of contract details
         """
         # Determine contract type
-        if self.temporary_contract_checkbox.isChecked():
+        if self.temporary_contract_radio.isChecked():
             contract_type = "määräaikainen"
         else:
             contract_type = "toistaiseksi voimassa oleva"
-        
         return {
             "employer_name": self.employer_name_input.text(),
             "employer_address": self.employer_address_input.text(),
@@ -378,12 +380,12 @@ class TyosopimusApp(QWidget):
             "employee_name": self.employee_name_input.text(),
             "employee_address": self.employee_address_input.text(),
             "employee_id": self.employee_id_input.text(),
-            "contract_date": self.contract_date_input.date().toString("dd.MM.yyyy"), # Added contract_date
+            "contract_date": self.contract_date_input.date().toString("dd.MM.yyyy"),
             "start_date": self.start_date_input.date().toString("dd.MM.yyyy"),
             "contract_type": contract_type,
-            "is_temporary": self.temporary_contract_checkbox.isChecked(),
-            "temp_contract_reason": self.temp_contract_reason_input.text() if self.temporary_contract_checkbox.isChecked() else "",
-            "end_date": self.end_date_input.date().toString("dd.MM.yyyy") if self.temporary_contract_checkbox.isChecked() else "",
+            "is_temporary": self.temporary_contract_radio.isChecked(),
+            "temp_contract_reason": self.temp_contract_reason_input.text() if self.temporary_contract_radio.isChecked() else "",
+            "end_date": self.end_date_input.date().toString("dd.MM.yyyy") if self.temporary_contract_radio.isChecked() else "",
             "probation_period": self.probation_period_input.text(),
             "job_title": self.job_title_input.text(),
             "main_duties": self.main_duties_input.text(),
@@ -426,15 +428,14 @@ class TyosopimusApp(QWidget):
         # Handle contract type
         is_temporary = data.get("is_temporary", False)
         if is_temporary:
-            self.temporary_contract_checkbox.setChecked(True)
-            self.permanent_contract_checkbox.setChecked(False)
+            self.temporary_contract_radio.setChecked(True)
             self.temp_contract_reason_input.setText(data.get("temp_contract_reason", ""))
             end_date_str = data.get("end_date")
             if end_date_str:
                 self.end_date_input.setDate(QDate.fromString(end_date_str, "dd.MM.yyyy"))
         else:
-            self.permanent_contract_checkbox.setChecked(True)
-            self.temporary_contract_checkbox.setChecked(False)
+            self.permanent_contract_radio.setChecked(True)
+        self.toggle_contract_type()
         
         self.probation_period_input.setText(data.get("probation_period", "6 kuukautta"))
         self.job_title_input.setText(data.get("job_title", ""))
@@ -680,8 +681,8 @@ class TyosopimusApp(QWidget):
         self.contract_date_input.setDate(QDate.currentDate()) # Added for contract_date
         self.start_date_input.setDate(QDate.currentDate())
         self.end_date_input.setDate(QDate.currentDate().addMonths(12))
-        self.permanent_contract_checkbox.setChecked(True)
-        self.temporary_contract_checkbox.setChecked(False)
+        self.permanent_contract_radio.setChecked(True)
+        self.toggle_contract_type()
         self.probation_period_input.setText("6 kuukautta")
         self.salary_payment_date_input.setText("kuukauden 15. päivä")
         self.working_hours_input.setText("37,5 tuntia / viikko")
@@ -690,7 +691,6 @@ class TyosopimusApp(QWidget):
         self.collective_agreement_input.setText("mahdollinen työehtosopimus")
         self.collective_agreement_checkbox.setChecked(False)
         self.toggle_collective_agreement()  # Hide collective agreement field
-        self.toggle_contract_type()  # Hide temporary fields
         self.update_preview()
 
     def update_preview(self):
@@ -916,29 +916,19 @@ class TyosopimusApp(QWidget):
 
     def toggle_contract_type(self):
         """Toggle visibility of temporary contract fields based on contract type selection."""
-        if self.temporary_contract_checkbox.isChecked():
-            # Uncheck permanent if temporary is checked
-            if self.permanent_contract_checkbox.isChecked():
-                self.permanent_contract_checkbox.setChecked(False)
-            # Show temporary contract fields by finding their rows
+        if self.temporary_contract_radio.isChecked():
             self._set_form_row_visible(self.temp_contract_reason_label, True)
             self._set_form_row_visible(self.end_date_label, True)
-            # Hide probation period for temporary contracts
             self._set_form_row_visible(self.probation_period_label, False)
-        elif self.permanent_contract_checkbox.isChecked():
-            # Uncheck temporary if permanent is checked
-            if self.temporary_contract_checkbox.isChecked():
-                self.temporary_contract_checkbox.setChecked(False)
-            # Hide temporary contract fields
+        elif self.permanent_contract_radio.isChecked():
             self._set_form_row_visible(self.temp_contract_reason_label, False)
             self._set_form_row_visible(self.end_date_label, False)
-            # Show probation period for permanent contracts
             self._set_form_row_visible(self.probation_period_label, True)
-        
         # If neither is checked, default to permanent
-        if not self.temporary_contract_checkbox.isChecked() and not self.permanent_contract_checkbox.isChecked():
-            self.permanent_contract_checkbox.setChecked(True)
-    
+        if not self.temporary_contract_radio.isChecked() and not self.permanent_contract_radio.isChecked():
+            self.permanent_contract_radio.setChecked(True)
+        self.update_preview()
+
     def _set_form_row_visible(self, label_widget, visible):
         """Set visibility of a form row by finding the label widget and its corresponding field."""
         layout = self.employment_details_layout
