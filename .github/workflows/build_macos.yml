@@ -1,0 +1,39 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.x' # Use a specific version if needed, e.g., '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt
+
+    - name: Build the application
+      run: |
+        source venv/bin/activate
+        pyinstaller --noconfirm --onedir --windowed --name TyosopimusKone main.py
+        # Create a zip archive of the .app bundle
+        ditto -c -k --sequesterRsrc --keepParent TyosopimusKone.app TyosopimusKone_macOS.zip
+
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: TyosopimusKone-macOS
+        path: TyosopimusKone_macOS.zip
