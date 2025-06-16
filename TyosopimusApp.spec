@@ -34,11 +34,12 @@ exe = EXE(
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
+    icon='assets/app_icon.icns',
     entitlements_file=None,
 )
 app = BUNDLE(
     exe,
     name='TyosopimusApp.app',
-    icon=None,
+    icon='assets/app_icon.icns',
     bundle_identifier=None,
 )
