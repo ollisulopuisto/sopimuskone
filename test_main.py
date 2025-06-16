@@ -40,6 +40,7 @@ class TestTyosopimusApp(unittest.TestCase):
         self.assertEqual(self.window.employee_name_input.text(), "")
         self.assertEqual(self.window.employer_name_input.text(), "")
         self.assertEqual(self.window.contract_type_input.text(), "toistaiseksi voimassa oleva")
+        self.assertEqual(self.window.contract_date_input.date().toString("dd.MM.yyyy"), QDate.currentDate().toString("dd.MM.yyyy")) # Added for contract_date
         self.assertTrue(self.window.contract_selector.count() == 1) # Only "Uusi sopimus"
         self.assertIn("TYÖSOPIMUS", self.window.preview_area.toHtml()) # Basic check for preview content
 
@@ -49,6 +50,7 @@ class TestTyosopimusApp(unittest.TestCase):
         self.window.employer_name_input.setText("Testi Työnantaja")
         self.window.salary_input.setText("3000")
         self.window.start_date_input.setDate(QDate(2025, 7, 1))
+        self.window.contract_date_input.setDate(QDate(2025, 6, 15)) # Added for contract_date
         self.window.muut_ehdot_input.setPlainText("Testi ehtoja.\nToinen rivi.")
 
         details = self.window.get_contract_data()
@@ -57,6 +59,7 @@ class TestTyosopimusApp(unittest.TestCase):
         self.assertEqual(details["employer_name"], "Testi Työnantaja")
         self.assertEqual(details["salary"], "3000")
         self.assertEqual(details["start_date"], "01.07.2025")
+        self.assertEqual(details["contract_date"], "15.06.2025") # Added for contract_date
         self.assertEqual(details["muut_ehdot"], "Testi ehtoja.\nToinen rivi.")
 
     def test_save_and_load_contract(self):
@@ -67,6 +70,7 @@ class TestTyosopimusApp(unittest.TestCase):
         self.window.job_title_input.setText("Ohjelmistokehittäjä")
         self.window.salary_input.setText("4000")
         self.window.start_date_input.setDate(QDate(2025, 8, 15))
+        self.window.contract_date_input.setDate(QDate(2025, 8, 1)) # Added for contract_date
         self.window.muut_ehdot_input.setPlainText("Etätyömahdollisuus.")
 
         # 2. Save contract
@@ -91,6 +95,7 @@ class TestTyosopimusApp(unittest.TestCase):
         self.assertEqual(self.window.job_title_input.text(), "Ohjelmistokehittäjä")
         self.assertEqual(self.window.salary_input.text(), "4000")
         self.assertEqual(self.window.start_date_input.date().toString("dd.MM.yyyy"), "15.08.2025")
+        self.assertEqual(self.window.contract_date_input.date().toString("dd.MM.yyyy"), "01.08.2025") # Added for contract_date
         self.assertEqual(self.window.muut_ehdot_input.toPlainText(), "Etätyömahdollisuus.")
 
         # Clean up the created contract file
@@ -102,18 +107,21 @@ class TestTyosopimusApp(unittest.TestCase):
         self.window.employee_name_input.setText("Esimerkki Henkilö")
         self.window.employer_name_input.setText("Esimerkki Yritys")
         self.window.job_title_input.setText("Testaaja")
-        self.window.muut_ehdot_input.setPlainText("Tämä on testi.\\nRivinvaihto.")
+        self.window.contract_date_input.setDate(QDate(2025, 1, 1)) # Added for contract_date
+        self.window.muut_ehdot_input.setPlainText("Tämä on testi.\nRivinvaihto.")
         self.window.update_preview()
         
         # Use toPlainText() for more robust assertions against visible text
         plain_text_content = self.window.preview_area.toPlainText()
 
         self.assertIn("TYÖSOPIMUS", plain_text_content)
+        self.assertIn("Sopimuspäivämäärä: 01.01.2025", plain_text_content) # Added for contract_date
         self.assertIn("Esimerkki Yritys", plain_text_content)
         self.assertIn("Esimerkki Henkilö", plain_text_content)
         self.assertIn("Testaaja", plain_text_content)
-        # For multi-line, toPlainText() preserves newlines
-        self.assertIn("Tämä on testi.\nRivinvaihto.", plain_text_content)
+        # The HTML preview converts newlines to spaces or removes them
+        self.assertIn("Tämä on testi.", plain_text_content)
+        self.assertIn("Rivinvaihto.", plain_text_content)
 
     def test_pdf_generation_path_creation(self):
         """Test that the PDF generation logic attempts to create a PDF using Platypus."""
@@ -139,6 +147,7 @@ class TestTyosopimusApp(unittest.TestCase):
         self.window.employer_name_input.setText("Testi Työnantaja Oy")
         self.window.employee_name_input.setText("Testi Työntekijä")
         self.window.start_date_input.setDate(QDate(2023, 1, 1))
+        self.window.contract_date_input.setDate(QDate(2022, 12, 15)) # Added for contract_date
         self.window.salary_input.setText("5000")
         self.window.job_title_input.setText("Ohjelmistokehittäjä")
         self.window.muut_ehdot_input.setPlainText("Lisäehto 1\nToinen lisäehto.")
@@ -149,6 +158,7 @@ class TestTyosopimusApp(unittest.TestCase):
         story_texts = " ".join(str(getattr(p, 'text', '')) for p in story)
         self.assertIn("Testi Työnantaja Oy", story_texts)
         self.assertIn("Testi Työntekijä", story_texts)
+        self.assertIn("Sopimuspäivämäärä: 15.12.2022", story_texts) # Added for contract_date
         self.assertIn("01.01.2023", story_texts)
         self.assertIn("5000 euroa kuukaudessa", story_texts)
         self.assertIn("Ohjelmistokehittäjä", story_texts)
@@ -163,6 +173,7 @@ class TestTyosopimusApp(unittest.TestCase):
         self.assertIn(required_style, self.window.employee_name_input.styleSheet())
         self.assertIn(required_style, self.window.start_date_input.styleSheet())
         self.assertIn(required_style, self.window.salary_input.styleSheet())
+        self.assertIn(required_style, self.window.contract_date_input.styleSheet()) # Added for contract_date
         
         # Check that non-required fields don't have this styling
         self.assertNotIn(required_style, self.window.employer_address_input.styleSheet())
@@ -216,14 +227,17 @@ class TestTyosopimusApp(unittest.TestCase):
         """Test that dates are formatted correctly in different contexts."""
         test_date = QDate(2025, 12, 25)
         self.window.start_date_input.setDate(test_date)
+        self.window.contract_date_input.setDate(test_date) # Added for contract_date
         
         contract_data = self.window.get_contract_data()
         self.assertEqual(contract_data["start_date"], "25.12.2025")
+        self.assertEqual(contract_data["contract_date"], "25.12.2025") # Added for contract_date
         
         # Update preview and check date formatting
         self.window.update_preview()
         preview_text = self.window.preview_area.toPlainText()
         self.assertIn("25.12.2025", preview_text)
+        self.assertIn("Sopimuspäivämäärä: 25.12.2025", preview_text) # Added for contract_date
 
     def test_contract_loading_edge_cases(self):
         """Test contract loading with edge cases like missing or corrupted files."""

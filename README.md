@@ -63,4 +63,4 @@ python -m unittest test_main.py
 MIT
 
 ## Author
-Your Name
+Olli Sulopuisto

@@ -91,6 +91,16 @@ class TyosopimusApp(QWidget):
         required_label_style = "color: #FFA500; font-weight: bold;"  # Orange, bold
         required_input_style = "border: 2px solid #FFA500; background-color: #232323; color: #fff;"  # Orange border, dark bg, white text
 
+        # Contract Date (New Field)
+        self.contract_date_label = QLabel("Sopimuspäivämäärä:")
+        self.contract_date_label.setStyleSheet(required_label_style)
+        self.contract_date_input = QDateEdit(calendarPopup=True)
+        self.contract_date_input.setMinimumWidth(300)
+        self.contract_date_input.setDate(QDate.currentDate())
+        self.contract_date_input.setStyleSheet(required_input_style)
+        input_layout.addRow(self.contract_date_label, self.contract_date_input)
+
+
         # 1. Työnantaja
         employer_group = QGroupBox()
         employer_group.setTitle("1. Työnantaja")
@@ -245,6 +255,7 @@ class TyosopimusApp(QWidget):
         ]:
             field.textChanged.connect(self.update_preview)
         self.start_date_input.dateChanged.connect(self.update_preview)
+        self.contract_date_input.dateChanged.connect(self.update_preview) # Added for contract_date
         self.muut_ehdot_input.textChanged.connect(self.update_preview)
 
 
@@ -285,6 +296,7 @@ class TyosopimusApp(QWidget):
             "employee_name": self.employee_name_input.text(),
             "employee_address": self.employee_address_input.text(),
             "employee_id": self.employee_id_input.text(),
+            "contract_date": self.contract_date_input.date().toString("dd.MM.yyyy"), # Added contract_date
             "start_date": self.start_date_input.date().toString("dd.MM.yyyy"),
             "contract_type": self.contract_type_input.text(),
             "probation_period": self.probation_period_input.text(),
@@ -311,6 +323,13 @@ class TyosopimusApp(QWidget):
         self.employee_name_input.setText(data.get("employee_name", ""))
         self.employee_address_input.setText(data.get("employee_address", ""))
         self.employee_id_input.setText(data.get("employee_id", ""))
+        
+        contract_date_str = data.get("contract_date") # Added for contract_date
+        if contract_date_str: # Added for contract_date
+            self.contract_date_input.setDate(QDate.fromString(contract_date_str, "dd.MM.yyyy")) # Added for contract_date
+        else: # Added for contract_date
+            self.contract_date_input.setDate(QDate.currentDate()) # Added for contract_date
+
         start_date_str = data.get("start_date")
         if start_date_str:
             self.start_date_input.setDate(QDate.fromString(start_date_str, "dd.MM.yyyy"))
@@ -405,6 +424,7 @@ class TyosopimusApp(QWidget):
             self.notice_period_input, self.collective_agreement_input, self.muut_ehdot_input
         ]:
             field.clear()
+        self.contract_date_input.setDate(QDate.currentDate()) # Added for contract_date
         self.start_date_input.setDate(QDate.currentDate())
         self.contract_type_input.setText("toistaiseksi voimassa oleva")
         self.probation_period_input.setText("6 kuukautta")
@@ -433,8 +453,10 @@ class TyosopimusApp(QWidget):
         hr {{ margin-top: 10px; margin-bottom: 10px; }}
         table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
         td {{ padding: 5px; vertical-align: top; }}
+        .contract-date {{ text-align: right; font-size: 10pt; margin-bottom: 20px; }}
         </style></head><body>
         <h2 style="text-align: center;">TYÖSOPIMUS</h2>
+        <p class="contract-date"><b>Sopimuspäivämäärä:</b> {data['contract_date']}</p>
         <hr />
 
         <h3>1. Työnantaja</h3>
@@ -520,6 +542,8 @@ class TyosopimusApp(QWidget):
         story = []
 
         story.append(Paragraph("TYÖSOPIMUS", styles['CustomHeading1']))
+        story.append(Spacer(1, 0.1*inch))
+        story.append(Paragraph(f"Sopimuspäivämäärä: {data.get('contract_date', QDate.currentDate().toString('dd.MM.yyyy'))}", styles['Normal']))
         story.append(Spacer(1, 0.2*inch))
 
         sections = [
