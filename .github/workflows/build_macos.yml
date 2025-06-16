@@ -10,6 +10,9 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    permissions:
+      contents: write  # Needed to create releases
+      actions: read    # Needed to read workflow files
 
     steps:
     - uses: actions/checkout@v4
@@ -32,7 +35,10 @@ jobs:
         # List contents to verify what was created
         ls -la dist/
         # Create a zip archive of the executable
-        cd dist && zip TyosopimusKone_macOS.zip TyosopimusKone && cd ..
+        cd dist
+        zip TyosopimusKone_macOS.zip TyosopimusKone
+        ls -la
+        cd ..
 
 
     - name: Upload Artifact
@@ -45,7 +51,8 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v2
       with:
-        files: dist/TyosopimusKone_macOS.zip
+        files: |
+          dist/TyosopimusKone_macOS.zip
         body: |
           ## Työsopimuskone ${{ github.ref_name }}
           
@@ -59,6 +66,7 @@ jobs:
           - PDF-vienti
           - Sopimusten tallennus ja lataus
           - Live HTML -esikatselu
+          - Sopimuspäivämäärä-kenttä
           
           **Huom:** macOS saattaa varoittaa tuntemattomasta kehittäjästä. Klikkaa "Avaa silti" Järjestelmäasetuksista.
         draft: false

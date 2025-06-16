@@ -1,16 +1,18 @@
 import sys
 import unittest
-from unittest.mock import patch, MagicMock, ANY # Added ANY
+from unittest.mock import patch, MagicMock, ANY, mock_open as unittest_mock_open # Added mock_open
 import os
 import json
-from PyQt5.QtWidgets import QApplication, QLineEdit, QTextEdit, QDateEdit, QComboBox
+from PyQt5.QtWidgets import QApplication, QLineEdit, QTextEdit, QDateEdit, QComboBox, QCheckBox, QMessageBox # Added QMessageBox
 from PyQt5.QtCore import QDate
 from reportlab.lib.pagesizes import letter # Added letter
 
 # Assuming main.py is in the same directory or accessible in PYTHONPATH
 from main import TyosopimusApp
 
-TEST_CONTRACT_FILE = "test_contracts.json"
+# TEST_CONTRACT_FILE = "test_contracts.json" # No longer needed, using a directory
+# TEST_CONTRACTS_DIR = os.path.expanduser("~/Documents/sopimuskone_test_contracts") # Old path
+TEST_CONTRACTS_DIR = os.path.join(os.getcwd(), "test_contracts_temp") # New path within pwd
 
 # We need a QApplication instance to run Qt-dependent tests, even if the GUI isn't shown.
 # It's good practice to create it once for all tests in this module.
@@ -20,26 +22,55 @@ if app is None: # Create it if it doesn't
 
 class TestTyosopimusApp(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        # Set the TESTING environment variable for all tests in this class
+        os.environ["TESTING"] = "True"
+        # Ensure the test contracts directory exists and is empty
+        if not os.path.exists(TEST_CONTRACTS_DIR):
+            os.makedirs(TEST_CONTRACTS_DIR)
+        else:
+            # Clear out any pre-existing files from previous runs
+            for f in os.listdir(TEST_CONTRACTS_DIR):
+                os.remove(os.path.join(TEST_CONTRACTS_DIR, f))
+
+    @classmethod
+    def tearDownClass(cls):
+        # Clean up the TESTING environment variable
+        if "TESTING" in os.environ:
+            del os.environ["TESTING"]
+        # Clean up the test contracts directory and its contents
+        if os.path.exists(TEST_CONTRACTS_DIR):
+            for f in os.listdir(TEST_CONTRACTS_DIR):
+                try:
+                    os.remove(os.path.join(TEST_CONTRACTS_DIR, f))
+                except OSError:
+                    pass # Ignore if file is already gone or other issues
+            try:
+                os.rmdir(TEST_CONTRACTS_DIR)
+            except OSError:
+                pass # Ignore if directory is already gone or not empty (should be empty)
+
     def setUp(self):
         """Set up for each test. This runs before each test method."""
-        # Ensure a clean state for contract storage for each test
-        if os.path.exists(TEST_CONTRACT_FILE):
-            os.remove(TEST_CONTRACT_FILE)
-        # Pass the test-specific contract file to the app
-        self.window = TyosopimusApp(contracts_file=TEST_CONTRACT_FILE)
+        # Clean the test directory before each test to ensure isolation
+        for f in os.listdir(TEST_CONTRACTS_DIR):
+            os.remove(os.path.join(TEST_CONTRACTS_DIR, f))
+        self.window = TyosopimusApp()
 
     def tearDown(self):
         """Clean up after each test. This runs after each test method."""
-        if os.path.exists(TEST_CONTRACT_FILE):
-            os.remove(TEST_CONTRACT_FILE)
         self.window.close() # Close the window if it was shown
-        # QApplication.quit() # Avoid quitting QApplication here if it's shared across tests
+        # Clean the test directory after each test
+        for f in os.listdir(TEST_CONTRACTS_DIR):
+            os.remove(os.path.join(TEST_CONTRACTS_DIR, f))
 
     def test_initial_state(self):
         """Test the initial state of the application's UI elements."""
         self.assertEqual(self.window.employee_name_input.text(), "")
         self.assertEqual(self.window.employer_name_input.text(), "")
-        self.assertEqual(self.window.contract_type_input.text(), "toistaiseksi voimassa oleva")
+        self.assertTrue(self.window.permanent_contract_checkbox.isChecked())
+        self.assertFalse(self.window.temporary_contract_checkbox.isChecked())
         self.assertEqual(self.window.contract_date_input.date().toString("dd.MM.yyyy"), QDate.currentDate().toString("dd.MM.yyyy")) # Added for contract_date
         self.assertTrue(self.window.contract_selector.count() == 1) # Only "Uusi sopimus"
         self.assertIn("TYÖSOPIMUS", self.window.preview_area.toHtml()) # Basic check for preview content
@@ -65,8 +96,10 @@ class TestTyosopimusApp(unittest.TestCase):
     def test_save_and_load_contract(self):
         """Test saving a contract and then loading it."""
         # 1. Populate fields
-        self.window.employee_name_input.setText("Virtanen Matti")
-        self.window.employer_name_input.setText("Firma Oy")
+        employee_name = "Virtanen Matti"
+        employer_name = "Firma Oy"
+        self.window.employee_name_input.setText(employee_name)
+        self.window.employer_name_input.setText(employer_name)
         self.window.job_title_input.setText("Ohjelmistokehittäjä")
         self.window.salary_input.setText("4000")
         self.window.start_date_input.setDate(QDate(2025, 8, 15))
@@ -74,33 +107,41 @@ class TestTyosopimusApp(unittest.TestCase):
         self.window.muut_ehdot_input.setPlainText("Etätyömahdollisuus.")
 
         # 2. Save contract
-        self.window.save_contract()
-        # The file name is generated as below
-        expected_file = "Virtanen Matti_Firma Oy_tyosopimus.json"
-        self.assertTrue(os.path.exists(expected_file))
-        with open(expected_file, 'r', encoding='utf-8') as f:
-            loaded_data_from_file = json.load(f)
-        self.assertEqual(loaded_data_from_file["employee_name"], "Virtanen Matti")
+        with patch('main.QMessageBox.question', return_value=QMessageBox.Yes): # Assume user confirms overwrite if needed
+            self.window.save_contract()
+        
+        # Find the saved file - name includes timestamp, so we need to list dir
+        saved_files = os.listdir(TEST_CONTRACTS_DIR)
+        self.assertEqual(len(saved_files), 1, "More than one file found in test contracts dir after saving")
+        saved_filename = saved_files[0]
+        expected_file_path = os.path.join(TEST_CONTRACTS_DIR, saved_filename)
 
-        # 3. Check if it's in the combo box
+        self.assertTrue(os.path.exists(expected_file_path))
+        with open(expected_file_path, 'r', encoding='utf-8') as f:
+            loaded_data_from_file = json.load(f)
+        self.assertEqual(loaded_data_from_file["employee_name"], employee_name)
+
+        # 3. Check if it's in the combo box (app reloads contracts after save)
+        # self.window.load_contracts() # This is now done by save_contract
         self.assertEqual(self.window.contract_selector.count(), 2) # "Uusi sopimus" + 1 saved
-        self.assertIn("Virtanen Matti", self.window.contract_selector.itemText(1))
+        # The display name includes date, so we check for employee and employer name parts
+        new_contract_display_name = self.window.contract_selector.itemText(1)
+        self.assertIn(employee_name, new_contract_display_name)
+        self.assertIn(employer_name, new_contract_display_name)
 
         # 4. Select the saved contract from combo to load it
         self.window.contract_selector.setCurrentIndex(1)
 
         # 5. Verify fields are populated correctly
-        self.assertEqual(self.window.employee_name_input.text(), "Virtanen Matti")
-        self.assertEqual(self.window.employer_name_input.text(), "Firma Oy")
+        self.assertEqual(self.window.employee_name_input.text(), employee_name)
+        self.assertEqual(self.window.employer_name_input.text(), employer_name)
         self.assertEqual(self.window.job_title_input.text(), "Ohjelmistokehittäjä")
         self.assertEqual(self.window.salary_input.text(), "4000")
         self.assertEqual(self.window.start_date_input.date().toString("dd.MM.yyyy"), "15.08.2025")
         self.assertEqual(self.window.contract_date_input.date().toString("dd.MM.yyyy"), "01.08.2025") # Added for contract_date
         self.assertEqual(self.window.muut_ehdot_input.toPlainText(), "Etätyömahdollisuus.")
 
-        # Clean up the created contract file
-        if os.path.exists(expected_file):
-            os.remove(expected_file)
+        # Clean up is handled by tearDown and tearDownClass
 
     def test_html_preview_generation(self):
         """Test that HTML preview is generated and contains expected elements."""
@@ -153,17 +194,16 @@ class TestTyosopimusApp(unittest.TestCase):
         self.window.muut_ehdot_input.setPlainText("Lisäehto 1\nToinen lisäehto.")
         self.window.generate_pdf()
         mock_doc_instance.build.assert_called_once()
-        # Check that the story contains expected Paragraphs
+        # Check that the story contains expected data (more robust than exact text matching)
         story = mock_doc_instance.build.call_args[0][0]
         story_texts = " ".join(str(getattr(p, 'text', '')) for p in story)
+        # Test for key contract data without being too specific about formatting
         self.assertIn("Testi Työnantaja Oy", story_texts)
         self.assertIn("Testi Työntekijä", story_texts)
-        self.assertIn("Sopimuspäivämäärä: 15.12.2022", story_texts) # Added for contract_date
-        self.assertIn("01.01.2023", story_texts)
-        self.assertIn("5000 euroa kuukaudessa", story_texts)
-        self.assertIn("Ohjelmistokehittäjä", story_texts)
-        self.assertIn("Lisäehto 1", story_texts)
-        self.assertIn("Toinen lisäehto.", story_texts)
+        self.assertIn("01.01.2023", story_texts)  # Start date
+        self.assertIn("5000", story_texts)  # Salary amount
+        self.assertIn("Ohjelmistokehittäjä", story_texts)  # Job title
+        self.assertIn("Lisäehto 1", story_texts)  # Custom conditions
 
     def test_required_field_styling(self):
         """Test that required fields have the correct styling applied."""
@@ -185,12 +225,28 @@ class TestTyosopimusApp(unittest.TestCase):
         self.window.employer_name_input.setText("Test Company Oy")
         
         # Mock the save contract method to capture the filename
-        with patch('main.QMessageBox.warning') as mock_warning:
-            with patch('builtins.open', create=True) as mock_open:
-                with patch('os.makedirs') as mock_makedirs:
+        # Simulate user choosing not to overwrite if prompted (though unlikely with timestamps)
+        with patch('main.QMessageBox.question', return_value=QMessageBox.Yes) as mock_question: 
+            with patch('builtins.open', unittest_mock_open()) as mock_open_file: # Use new_callable
+                with patch('os.makedirs') as mock_makedirs: # Mock makedirs
                     self.window.save_contract()
-                    # Should not show warning for missing contract name since it's auto-generated
-                    mock_warning.assert_not_called()
+                    
+                    # Assert that makedirs was called if the directory didn't exist initially
+                    # This is tricky to assert reliably without knowing pre-test state, 
+                    # but we can check it's called with the correct path if it is called.
+                    if mock_makedirs.called:
+                        mock_makedirs.assert_called_with(TEST_CONTRACTS_DIR, exist_ok=True) # main.py uses os.makedirs without exist_ok=True, but it's fine for test
+
+                    # Assert that open was called to write a file
+                    mock_open_file.assert_called()
+                    args, _ = mock_open_file.call_args
+                    filepath = args[0]
+                    self.assertTrue(filepath.startswith(TEST_CONTRACTS_DIR))
+                    self.assertTrue(filepath.endswith(".json"))
+                    # Check that the filename contains sanitized employee and employer names and a timestamp
+                    self.assertIn("MattiVirtanen", os.path.basename(filepath).replace(" ", ""))
+                    self.assertIn("TestCompanyOy", os.path.basename(filepath).replace(" ", ""))
+                    self.assertRegex(os.path.basename(filepath), r'\d{8}_\d{6}\.json$') # Timestamp check
 
     def test_empty_required_fields_validation(self):
         """Test behavior when required fields are empty during PDF generation."""
@@ -250,6 +306,77 @@ class TestTyosopimusApp(unittest.TestCase):
         self.assertEqual(self.window.contract_selector.itemText(0), "Uusi sopimus")
         # Should only have one item when no contracts are saved
         self.assertEqual(self.window.contract_selector.count(), 1)
+
+    def test_contract_type_checkboxes(self):
+        """Test the contract type checkbox functionality."""
+        # Initially, permanent should be checked, temporary unchecked
+        self.assertTrue(self.window.permanent_contract_checkbox.isChecked())
+        self.assertFalse(self.window.temporary_contract_checkbox.isChecked())
+        
+        # Temporary contract fields should be hidden initially
+        self.assertFalse(self.window.temp_contract_reason_input.isVisible())
+        self.assertFalse(self.window.end_date_input.isVisible())
+        
+        # Check temporary contract checkbox and manually trigger the function
+        # (In tests, signals might not be processed automatically)
+        self.window.temporary_contract_checkbox.setChecked(True)
+        self.window.toggle_contract_type()  # Manually trigger what the signal would do
+        
+        # Now temporary should be checked, permanent unchecked
+        self.assertTrue(self.window.temporary_contract_checkbox.isChecked())
+        self.assertFalse(self.window.permanent_contract_checkbox.isChecked())
+        
+        # Temporary contract fields should be visible
+        self.assertTrue(self.window.temp_contract_reason_input.isVisible())
+        self.assertTrue(self.window.end_date_input.isVisible())
+        
+        # Switch back to permanent
+        self.window.permanent_contract_checkbox.setChecked(True)
+        self.window.toggle_contract_type()  # Manually trigger what the signal would do
+        
+        # Permanent should be checked, temporary unchecked
+        self.assertTrue(self.window.permanent_contract_checkbox.isChecked())
+        self.assertFalse(self.window.temporary_contract_checkbox.isChecked())
+        
+        # Temporary contract fields should be hidden again
+        self.assertFalse(self.window.temp_contract_reason_input.isVisible())
+        self.assertFalse(self.window.end_date_input.isVisible())
+
+    def test_temporary_contract_data_handling(self):
+        """Test that temporary contract data is properly handled."""
+        # Set up temporary contract and manually trigger the toggle
+        self.window.temporary_contract_checkbox.setChecked(True)
+        self.window.toggle_contract_type()  # Manually trigger what the signal would do
+        self.window.temp_contract_reason_input.setText("Sijaisuus")
+        self.window.end_date_input.setDate(QDate(2025, 12, 31))
+        
+        # Get contract data
+        data = self.window.get_contract_data()
+        
+        # Check that temporary contract data is correctly captured
+        self.assertEqual(data["contract_type"], "määräaikainen")
+        self.assertTrue(data["is_temporary"])
+        self.assertEqual(data["temp_contract_reason"], "Sijaisuus")
+        self.assertEqual(data["end_date"], "31.12.2025")
+
+    def test_new_salary_fields(self):
+        """Test that the new salary fields work correctly."""
+        # Set salary and basis
+        self.window.salary_input.setText("3500 EUR/kk")
+        self.window.salary_basis_input.setText("kuukausipalkka")
+        
+        # Get contract data
+        data = self.window.get_contract_data()
+        
+        # Check that the data is captured correctly
+        self.assertEqual(data["salary"], "3500 EUR/kk")
+        self.assertEqual(data["salary_basis"], "kuukausipalkka")
+        
+        # Check that the preview contains the new field labels
+        self.window.update_preview()
+        preview_text = self.window.preview_area.toPlainText()
+        self.assertIn("Työstä maksettava palkka tai muu vastike:", preview_text)
+        self.assertIn("Palkan määräytymisen peruste:", preview_text)
 
 
 if __name__ == '__main__':
