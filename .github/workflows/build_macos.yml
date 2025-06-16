@@ -3,6 +3,7 @@ name: Build macOS App
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]  # Trigger on version tags like v1.0.0
   pull_request:
     branches: [ main ]
 
@@ -39,3 +40,28 @@ jobs:
       with:
         name: TyosopimusKone-macOS
         path: dist/TyosopimusKone_macOS.zip
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/TyosopimusKone_macOS.zip
+        body: |
+          ## Työsopimuskone ${{ github.ref_name }}
+          
+          ### Lataa macOS-sovellus
+          - Lataa `TyosopimusKone_macOS.zip`
+          - Pura zip-tiedosto
+          - Käynnistä `TyosopimusKone`
+          
+          ### Ominaisuudet
+          - Luo suomalaisia työsopimuksia
+          - PDF-vienti
+          - Sopimusten tallennus ja lataus
+          - Live HTML -esikatselu
+          
+          **Huom:** macOS saattaa varoittaa tuntemattomasta kehittäjästä. Klikkaa "Avaa silti" Järjestelmäasetuksista.
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
