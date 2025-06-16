@@ -11,36 +11,49 @@ A standalone, self-distributable Mac Python GUI app for generating Finnish emplo
 - All data is stored locally, no cloud or external dependencies
 - Dark mode friendly UI with high contrast elements
 - Test Driven Development (TDD) with comprehensive automated unittests
+- **App icon included in the bundle** (see `assets/app_icon.icns`)
+- **App and binary always named `Työsopimuskone.app`** for consistency
 
 ## Installation
+
 1. Clone the repository:
+
    ```sh
    git clone <repo-url>
    cd sopimuskone
    ```
+
 2. Create and activate a Python 3 virtual environment:
+
    ```sh
    python3 -m venv venv
    source venv/bin/activate
    ```
+
 3. Install dependencies:
+
    ```sh
    pip install -r requirements.txt
    ```
 
 ## Running the App
+
 ```sh
 python main.py
 ```
 
 ## Building a Standalone macOS App
-PyInstaller is used to create a standalone `.app` bundle:
+
+PyInstaller is used to create a standalone `.app` bundle using the provided `.spec` file:
+
 ```sh
-pyinstaller --noconfirm --onedir --windowed --name TyosopimusKone main.py
+pyinstaller TyosopimusApp.spec
 ```
-The resulting app will be in the `dist/` directory.
+
+The resulting app will be in the `dist/` directory as `Työsopimuskone.app`.
 
 ## Running Tests
+
 ```sh
 python -m unittest test_main.py
 ```
@@ -50,11 +63,13 @@ python -m unittest test_main.py
 - `main.py` — Main application logic, GUI, PDF generation, data persistence
 - `test_main.py` — Unittest suite for TDD
 - `requirements.txt` — Python dependencies
-- `contracts/` — Directory for individual contract JSON files (created at runtime)
-- `.vscode/tasks.json` — VS Code build task configuration
-- `.github/workflows/build_macos.yml` — GitHub Actions CI/CD workflow
+- `assets/app_icon.icns` — App icon for macOS bundle
+- `TyosopimusApp.spec` — PyInstaller spec file (always builds `Työsopimuskone.app`)
+- `.vscode/tasks.json` — VS Code build task configuration (uses the spec file)
+- `.github/workflows/build_macos.yml` — GitHub Actions CI/CD workflow (uses the spec file and correct app name)
 
 ## Dependencies
+
 - PyQt5
 - reportlab
 - pyinstaller (for packaging)
