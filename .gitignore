@@ -62,3 +62,4 @@ contracts/
 # pdf
 *.pdf
 test_backup/
+.venv
