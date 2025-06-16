@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"command": "~/Documents/venv/sopimus/bin/pyinstaller --windowed --onefile --name TyosopimusApp main.py",
+			"group": "build",
+			"isBackground": false,
+			"label": "Build Standalone App",
+			"problemMatcher": [],
+			"type": "shell"
+		}
+	]
+}
