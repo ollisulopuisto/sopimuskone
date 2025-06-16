@@ -916,14 +916,14 @@ class TyosopimusApp(QWidget):
 
     def toggle_contract_type(self):
         """Toggle visibility of temporary contract fields based on contract type selection."""
-        if self.temporary_contract_radio.isChecked():
-            self._set_form_row_visible(self.temp_contract_reason_label, True)
-            self._set_form_row_visible(self.end_date_label, True)
-            self._set_form_row_visible(self.probation_period_label, False)
-        elif self.permanent_contract_radio.isChecked():
-            self._set_form_row_visible(self.temp_contract_reason_label, False)
-            self._set_form_row_visible(self.end_date_label, False)
-            self._set_form_row_visible(self.probation_period_label, True)
+        is_temp = self.temporary_contract_radio.isChecked()
+        # Set both label and input visibility explicitly for robust testability
+        self.temp_contract_reason_label.setVisible(is_temp)
+        self.temp_contract_reason_input.setVisible(is_temp)
+        self.end_date_label.setVisible(is_temp)
+        self.end_date_input.setVisible(is_temp)
+        self.probation_period_label.setVisible(not is_temp)
+        self.probation_period_input.setVisible(not is_temp)
         # If neither is checked, default to permanent
         if not self.temporary_contract_radio.isChecked() and not self.permanent_contract_radio.isChecked():
             self.permanent_contract_radio.setChecked(True)
