@@ -1,3 +1,0 @@
-([('TyosopimusApp',
-   '/Users/dst/Dropbox/koodi/sopimuskone/dist/TyosopimusApp',
-   'EXECUTABLE')],)
