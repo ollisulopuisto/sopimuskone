@@ -57,3 +57,6 @@ logs/
 # Data files
 contracts.json
 test_contracts.json
+
+# pdf
+*.pdf
