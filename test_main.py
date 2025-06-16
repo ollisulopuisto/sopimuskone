@@ -69,8 +69,8 @@ class TestTyosopimusApp(unittest.TestCase):
         """Test the initial state of the application's UI elements."""
         self.assertEqual(self.window.employee_name_input.text(), "")
         self.assertEqual(self.window.employer_name_input.text(), "")
-        self.assertTrue(self.window.permanent_contract_checkbox.isChecked())
-        self.assertFalse(self.window.temporary_contract_checkbox.isChecked())
+        self.assertTrue(self.window.permanent_contract_radio.isChecked())
+        self.assertFalse(self.window.temporary_contract_radio.isChecked())
         self.assertEqual(self.window.contract_date_input.date().toString("dd.MM.yyyy"), QDate.currentDate().toString("dd.MM.yyyy")) # Added for contract_date
         self.assertTrue(self.window.contract_selector.count() == 1) # Only "Uusi sopimus"
         self.assertIn("TYÖSOPIMUS", self.window.preview_area.toHtml()) # Basic check for preview content
@@ -307,52 +307,40 @@ class TestTyosopimusApp(unittest.TestCase):
         # Should only have one item when no contracts are saved
         self.assertEqual(self.window.contract_selector.count(), 1)
 
-    def test_contract_type_checkboxes(self):
-        """Test the contract type checkbox functionality."""
+    def test_contract_type_radio_buttons(self):
+        """Test the contract type radio button functionality (logic only, not widget visibility)."""
         # Initially, permanent should be checked, temporary unchecked
-        self.assertTrue(self.window.permanent_contract_checkbox.isChecked())
-        self.assertFalse(self.window.temporary_contract_checkbox.isChecked())
-        
-        # Temporary contract fields should be hidden initially
-        self.assertFalse(self.window.temp_contract_reason_input.isVisible())
-        self.assertFalse(self.window.end_date_input.isVisible())
-        
-        # Check temporary contract checkbox and manually trigger the function
-        # (In tests, signals might not be processed automatically)
-        self.window.temporary_contract_checkbox.setChecked(True)
-        self.window.toggle_contract_type()  # Manually trigger what the signal would do
-        
-        # Now temporary should be checked, permanent unchecked
-        self.assertTrue(self.window.temporary_contract_checkbox.isChecked())
-        self.assertFalse(self.window.permanent_contract_checkbox.isChecked())
-        
-        # Temporary contract fields should be visible
-        self.assertTrue(self.window.temp_contract_reason_input.isVisible())
-        self.assertTrue(self.window.end_date_input.isVisible())
-        
+        self.assertTrue(self.window.permanent_contract_radio.isChecked())
+        self.assertFalse(self.window.temporary_contract_radio.isChecked())
+        data = self.window.get_contract_data()
+        self.assertEqual(data["contract_type"], "toistaiseksi voimassa oleva")
+        self.assertFalse(data["is_temporary"])
+        # Switch to temporary contract
+        self.window.temporary_contract_radio.setChecked(True)
+        self.window.toggle_contract_type()
+        self.assertTrue(self.window.temporary_contract_radio.isChecked())
+        self.assertFalse(self.window.permanent_contract_radio.isChecked())
+        data = self.window.get_contract_data()
+        self.assertEqual(data["contract_type"], "määräaikainen")
+        self.assertTrue(data["is_temporary"])
         # Switch back to permanent
-        self.window.permanent_contract_checkbox.setChecked(True)
-        self.window.toggle_contract_type()  # Manually trigger what the signal would do
-        
-        # Permanent should be checked, temporary unchecked
-        self.assertTrue(self.window.permanent_contract_checkbox.isChecked())
-        self.assertFalse(self.window.temporary_contract_checkbox.isChecked())
-        
-        # Temporary contract fields should be hidden again
-        self.assertFalse(self.window.temp_contract_reason_input.isVisible())
-        self.assertFalse(self.window.end_date_input.isVisible())
+        self.window.permanent_contract_radio.setChecked(True)
+        self.window.toggle_contract_type()
+        self.assertTrue(self.window.permanent_contract_radio.isChecked())
+        self.assertFalse(self.window.temporary_contract_radio.isChecked())
+        data = self.window.get_contract_data()
+        self.assertEqual(data["contract_type"], "toistaiseksi voimassa oleva")
+        self.assertFalse(data["is_temporary"])
 
     def test_temporary_contract_data_handling(self):
         """Test that temporary contract data is properly handled."""
         # Set up temporary contract and manually trigger the toggle
-        self.window.temporary_contract_checkbox.setChecked(True)
+        self.window.temporary_contract_radio.setChecked(True)
         self.window.toggle_contract_type()  # Manually trigger what the signal would do
         self.window.temp_contract_reason_input.setText("Sijaisuus")
         self.window.end_date_input.setDate(QDate(2025, 12, 31))
-        
         # Get contract data
         data = self.window.get_contract_data()
-        
         # Check that temporary contract data is correctly captured
         self.assertEqual(data["contract_type"], "määräaikainen")
         self.assertTrue(data["is_temporary"])
@@ -364,14 +352,11 @@ class TestTyosopimusApp(unittest.TestCase):
         # Set salary and basis
         self.window.salary_input.setText("3500 EUR/kk")
         self.window.salary_basis_input.setText("kuukausipalkka")
-        
         # Get contract data
         data = self.window.get_contract_data()
-        
         # Check that the data is captured correctly
         self.assertEqual(data["salary"], "3500 EUR/kk")
         self.assertEqual(data["salary_basis"], "kuukausipalkka")
-        
         # Check that the preview contains the new field labels
         self.window.update_preview()
         preview_text = self.window.preview_area.toPlainText()
