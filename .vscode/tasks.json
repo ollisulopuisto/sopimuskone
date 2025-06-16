@@ -8,6 +8,14 @@
 			"label": "Build Standalone App",
 			"problemMatcher": [],
 			"type": "shell"
+		},
+		{
+			"label": "Codesign App",
+			"type": "shell",
+			"command": "codesign --deep --force --verify --verbose --sign \"Apple Development: dst@iki.fi (EEZAN9Q4JP)\" dist/TyosopimusApp.app",
+			"group": "build",
+			"dependsOn": "Build Standalone App",
+			"problemMatcher": []
 		}
 	]
 }
