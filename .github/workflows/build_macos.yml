@@ -31,7 +31,7 @@ jobs:
     - name: Build the application
       run: |
         source venv/bin/activate
-        pyinstaller --noconfirm --onefile --windowed --name TyosopimusKone main.py
+        pyinstaller --windowed --onefile --name TyosopimusApp --icon=assets/app_icon.icns main.py
         # List contents to verify what was created
         ls -la dist/
         # Create a zip archive of the executable

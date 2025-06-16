@@ -63,4 +63,6 @@ python -m unittest test_main.py
 MIT
 
 ## Author
-Your Name
+Olli Sulopuisto
+
+[Contract icons created by Freepik - Flaticon](https://www.flaticon.com/free-icons/contract)
