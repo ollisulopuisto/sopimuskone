@@ -27,13 +27,15 @@ jobs:
     - name: Build the application
       run: |
         source venv/bin/activate
-        pyinstaller --noconfirm --onedir --windowed --name TyosopimusKone main.py
-        # Create a zip archive of the .app bundle
-        ditto -c -k --sequesterRsrc --keepParent TyosopimusKone.app TyosopimusKone_macOS.zip
+        pyinstaller --noconfirm --onefile --windowed --name TyosopimusKone main.py
+        # List contents to verify what was created
+        ls -la dist/
+        # Create a zip archive of the executable
+        cd dist && zip TyosopimusKone_macOS.zip TyosopimusKone && cd ..
 
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: TyosopimusKone-macOS
-        path: TyosopimusKone_macOS.zip
+        path: dist/TyosopimusKone_macOS.zip
