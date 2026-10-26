@@ -15,10 +15,10 @@ jobs:
       actions: read    # Needed to read workflow files
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: '3.x' # Use a specific version if needed, e.g., '3.10'
 
@@ -42,14 +42,14 @@ jobs:
 
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Työsopimuskone-macOS
         path: dist/Työsopimuskone_macOS.zip
 
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         files: |
           dist/Työsopimuskone_macOS.zip
