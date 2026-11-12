@@ -38,7 +38,7 @@ from PyQt5.QtGui import QPalette, QColor, QFont # Added QFont
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY # Added TA_RIGHT, TA_JUSTIFY
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 
@@ -797,7 +797,7 @@ class TyosopimusApp(QWidget):
         if not filename:
             return
 
-        doc = SimpleDocTemplate(filename, pagesize=letter,
+        doc = SimpleDocTemplate(filename, pagesize=A4,
                                 rightMargin=inch, leftMargin=inch,
                                 topMargin=inch, bottomMargin=inch)
         styles = getSampleStyleSheet()
