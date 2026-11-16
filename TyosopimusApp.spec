@@ -10,9 +10,18 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # Exclude large standard-library modules the app and its dependencies
+    # (PyQt5, reportlab) never import, shrinking the frozen bundle and the
+    # analysis/freeze work PyInstaller performs at build time.
+    excludes=[
+        'tkinter', 'tcl', 'unittest', 'pydoc', 'doctest', 'pdb',
+        'profile', 'pstats', 'idlelib', 'turtle', 'ensurepip', 'venv',
+        'distutils', 'lib2to3',
+    ],
     noarchive=False,
-    optimize=0,
+    # Optimize frozen bytecode (drop docstrings and asserts) for smaller
+    # modules and slightly faster module load at startup.
+    optimize=2,
 )
 pyz = PYZ(a.pure)
 
@@ -25,7 +34,8 @@ exe = EXE(
     name='Työsopimuskone',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
+    # Strip debug symbols from the Mach-O executable for a smaller release bundle.
+    strip=True,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
