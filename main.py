@@ -10,6 +10,7 @@ import warnings
 # Suppress macOS secure coding warnings for PyQt5
 warnings.filterwarnings("ignore", category=UserWarning, module="PyQt5")
 
+import html # HTML-escaping for user-supplied content rendered as markup
 import json # Added json import
 import os  # Added os import
 from PyQt5.QtWidgets import (
@@ -698,7 +699,12 @@ class TyosopimusApp(QWidget):
         Update the live HTML preview area with the current contract data.
         """
         data = self.get_contract_data()
-        muut_ehdot_html = data['muut_ehdot'].replace("\\n", "<br />")
+        # Escape all user-supplied content before embedding it in HTML.
+        # QTextEdit.setHtml() re-parses developer-built HTML, so unescaped
+        # '<', '>', '&' from contract fields would be interpreted as markup
+        # (spoofable contract content, silently dropped text).
+        safe = {key: html.escape(str(value or "")) for key, value in data.items()}
+        muut_ehdot_html = safe["muut_ehdot"].replace("\n", "<br />")
 
         # Build temporary contract section conditionally
         temp_contract_section = ""
@@ -706,12 +712,12 @@ class TyosopimusApp(QWidget):
         
         if data['is_temporary']:
             temp_contract_section = f'''
-        <p><b>Määräaikaisuuden peruste:</b> {data['temp_contract_reason']}</p>
-        <p><b>Määräaikaisuus päättyy:</b> {data['end_date']}</p>'''
+        <p><b>Määräaikaisuuden peruste:</b> {safe['temp_contract_reason']}</p>
+        <p><b>Määräaikaisuus päättyy:</b> {safe['end_date']}</p>'''
         else:
             # Only show probation period for permanent contracts
             probation_section = f'''
-        <p><b>Koeaika:</b> {data['probation_period']}</p>'''
+        <p><b>Koeaika:</b> {safe['probation_period']}</p>'''
 
         html_content = f'''
         <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
@@ -727,43 +733,43 @@ class TyosopimusApp(QWidget):
         .contract-date {{ text-align: right; font-size: 10pt; margin-bottom: 20px; }}
         </style></head><body>
         <h2 style="text-align: center;">TYÖSOPIMUS</h2>
-        <p class="contract-date"><b>Sopimuspäivämäärä:</b> {data['contract_date']}</p>
+        <p class="contract-date"><b>Sopimuspäivämäärä:</b> {safe['contract_date']}</p>
         <hr />
 
         <h3>1. Työnantaja</h3>
-        <p><b>Nimi:</b> {data['employer_name']}</p>
-        <p><b>Osoite:</b> {data['employer_address']}</p>
-        <p><b>Y-tunnus:</b> {data['employer_id']}</p>
+        <p><b>Nimi:</b> {safe['employer_name']}</p>
+        <p><b>Osoite:</b> {safe['employer_address']}</p>
+        <p><b>Y-tunnus:</b> {safe['employer_id']}</p>
 
         <h3>2. Työntekijä</h3>
-        <p><b>Nimi:</b> {data['employee_name']}</p>
-        <p><b>Osoite:</b> {data['employee_address']}</p>
-        <p><b>Henkilötunnus:</b> {data['employee_id']}</p>
+        <p><b>Nimi:</b> {safe['employee_name']}</p>
+        <p><b>Osoite:</b> {safe['employee_address']}</p>
+        <p><b>Henkilötunnus:</b> {safe['employee_id']}</p>
 
         <h3>3. Työsuhteen alkaminen ja luonne</h3>
-        <p><b>Työ alkaa:</b> {data['start_date']}</p>
-        <p><b>Sopimuksen luonne:</b> {data['contract_type']}</p>{temp_contract_section}{probation_section}
+        <p><b>Työ alkaa:</b> {safe['start_date']}</p>
+        <p><b>Sopimuksen luonne:</b> {safe['contract_type']}</p>{temp_contract_section}{probation_section}
 
         <h3>4. Työtehtävät ja työntekopaikka</h3>
-        <p><b>Tehtävänimike:</b> {data['job_title']}</p>
-        <p><b>Pääasialliset työtehtävät:</b> {data['main_duties']}</p>
-        <p><b>Työntekopaikka:</b> {data['work_location']}</p>
+        <p><b>Tehtävänimike:</b> {safe['job_title']}</p>
+        <p><b>Pääasialliset työtehtävät:</b> {safe['main_duties']}</p>
+        <p><b>Työntekopaikka:</b> {safe['work_location']}</p>
 
         <h3>5. Palkkaus</h3>
-        <p><b>Työstä maksettava palkka tai muu vastike:</b> {data['salary']}</p>
-        <p><b>Palkan määräytymisen peruste:</b> {data['salary_basis']}</p>
-        <p><b>Palkanmaksukausi ja -päivä:</b> {data['salary_payment_date']}</p>
+        <p><b>Työstä maksettava palkka tai muu vastike:</b> {safe['salary']}</p>
+        <p><b>Palkan määräytymisen peruste:</b> {safe['salary_basis']}</p>
+        <p><b>Palkanmaksukausi ja -päivä:</b> {safe['salary_payment_date']}</p>
 
         <h3>6. Työaika</h3>
-        <p><b>Työaika:</b> {data['working_hours']}</p>
+        <p><b>Työaika:</b> {safe['working_hours']}</p>
 
         <h3>7. Vuosiloma</h3>
-        <p><b>Vuosiloma määräytyy:</b> {data['annual_leave']}</p>
+        <p><b>Vuosiloma määräytyy:</b> {safe['annual_leave']}</p>
 
         <h3>8. Irtisanomisaika</h3>
-        <p><b>Irtisanomisaika määräytyy:</b> {data['notice_period']}</p>
+        <p><b>Irtisanomisaika määräytyy:</b> {safe['notice_period']}</p>
 
-        {"<h3>9. Sovellettava työehtosopimus</h3><p><b>Työsuhteessa noudatetaan:</b> " + data['collective_agreement'] + "</p>" if data.get('has_collective_agreement', False) else ""}
+        {"<h3>9. Sovellettava työehtosopimus</h3><p><b>Työsuhteessa noudatetaan:</b> " + safe['collective_agreement'] + "</p>" if data.get('has_collective_agreement', False) else ""}
 
         <h3>{"10" if data.get('has_collective_agreement', False) else "9"}. Muut ehdot</h3>
         <p>{muut_ehdot_html}</p>
@@ -776,8 +782,8 @@ class TyosopimusApp(QWidget):
                 <td width="50%">_________________________</td>
             </tr>
             <tr>
-                <td>{data['employer_name']}</td>
-                <td>{data['employee_name']}</td>
+                <td>{safe['employer_name']}</td>
+                <td>{safe['employee_name']}</td>
             </tr>
             <tr>
                 <td>(Työnantaja)</td>
@@ -810,65 +816,69 @@ class TyosopimusApp(QWidget):
         styles.add(ParagraphStyle(name='BodyTextSpaced', parent=styles['Normal'], spaceBefore=6, spaceAfter=6))
 
         story = []
+        # Escape user-supplied content before embedding it in reportlab Paragraph
+        # markup, which parses '<', '>', '&' as XML (markup injection / paragraph
+        # parse failures in the exported PDF).
+        safe = {key: html.escape(str(value or "")) for key, value in data.items()}
 
         story.append(Paragraph("TYÖSOPIMUS", styles['CustomHeading1']))
         story.append(Spacer(1, 0.1*inch))
-        story.append(Paragraph(f"Sopimuspäivämäärä: {data.get('contract_date', QDate.currentDate().toString('dd.MM.yyyy'))}", styles['Normal']))
+        story.append(Paragraph(f"Sopimuspäivämäärä: {safe.get('contract_date', QDate.currentDate().toString('dd.MM.yyyy'))}", styles['Normal']))
         story.append(Spacer(1, 0.2*inch))
 
         # Build sections dynamically based on contract type
         employment_section = [
-            (f"<b>Työ alkaa:</b> {data.get('start_date', '')}", styles['Normal']),
-            (f"<b>Sopimuksen luonne:</b> {data.get('contract_type', '')}", styles['Normal'])
+            (f"<b>Työ alkaa:</b> {safe.get('start_date', '')}", styles['Normal']),
+            (f"<b>Sopimuksen luonne:</b> {safe.get('contract_type', '')}", styles['Normal'])
         ]
         
         # Add temporary contract specific fields if applicable
         if data.get('is_temporary', False):
             employment_section.extend([
-                (f"<b>Määräaikaisuuden peruste:</b> {data.get('temp_contract_reason', '')}", styles['Normal']),
-                (f"<b>Määräaikaisuus päättyy:</b> {data.get('end_date', '')}", styles['Normal'])
+                (f"<b>Määräaikaisuuden peruste:</b> {safe.get('temp_contract_reason', '')}", styles['Normal']),
+                (f"<b>Määräaikaisuus päättyy:</b> {safe.get('end_date', '')}", styles['Normal'])
             ])
         else:
             # Only add probation period for permanent contracts
-            employment_section.append((f"<b>Koeaika:</b> {data.get('probation_period', '')}", styles['Normal']))
+            employment_section.append((f"<b>Koeaika:</b> {safe.get('probation_period', '')}", styles['Normal']))
 
         sections = [
             ("1. Työnantaja", [
-                (f"<b>Nimi:</b> {data.get('employer_name', '')}", styles['Normal']),
-                (f"<b>Osoite:</b> {data.get('employer_address', '')}", styles['Normal']),
-                (f"<b>Y-tunnus:</b> {data.get('employer_id', '')}", styles['Normal'])
+                (f"<b>Nimi:</b> {safe.get('employer_name', '')}", styles['Normal']),
+                (f"<b>Osoite:</b> {safe.get('employer_address', '')}", styles['Normal']),
+                (f"<b>Y-tunnus:</b> {safe.get('employer_id', '')}", styles['Normal'])
             ]),
             ("2. Työntekijä", [
-                (f"<b>Nimi:</b> {data.get('employee_name', '')}", styles['Normal']),
-                (f"<b>Osoite:</b> {data.get('employee_address', '')}", styles['Normal']),
-                (f"<b>Henkilötunnus:</b> {data.get('employee_id', '')}", styles['Normal'])
+                (f"<b>Nimi:</b> {safe.get('employee_name', '')}", styles['Normal']),
+                (f"<b>Osoite:</b> {safe.get('employee_address', '')}", styles['Normal']),
+                (f"<b>Henkilötunnus:</b> {safe.get('employee_id', '')}", styles['Normal'])
             ]),
             ("3. Työsuhteen alkaminen ja luonne", employment_section),
             ("4. Työtehtävät ja työntekopaikka", [
-                (f"<b>Tehtävänimike:</b> {data.get('job_title', '')}", styles['Normal']),
-                (Paragraph(f"<b>Pääasialliset työtehtävät:</b> {data.get('main_duties', '').replace(chr(10), '<br/>')}", styles['Normal'])),
-                (f"<b>Työntekopaikka:</b> {data.get('work_location', '')}", styles['Normal'])
+                (f"<b>Tehtävänimike:</b> {safe.get('job_title', '')}", styles['Normal']),
+                (Paragraph(f"<b>Pääasialliset työtehtävät:</b> {safe.get('main_duties', '').replace(chr(10), '<br/>')}", styles['Normal'])),
+                (f"<b>Työntekopaikka:</b> {safe.get('work_location', '')}", styles['Normal'])
             ]),
             ("5. Palkkaus", [
-                (f"<b>Työstä maksettava palkka tai muu vastike:</b> {data.get('salary', '')}", styles['Normal']),
-                (f"<b>Palkan määräytymisen peruste:</b> {data.get('salary_basis', '')}", styles['Normal']),
-                (f"<b>Palkanmaksukausi ja -päivä:</b> {data.get('salary_payment_date', '')}", styles['Normal'])
+                (f"<b>Työstä maksettava palkka tai muu vastike:</b> {safe.get('salary', '')}", styles['Normal']),
+                (f"<b>Palkan määräytymisen peruste:</b> {safe.get('salary_basis', '')}", styles['Normal']),
+                (f"<b>Palkanmaksukausi ja -päivä:</b> {safe.get('salary_payment_date', '')}", styles['Normal'])
             ]),
             ("6. Työaika", [
-                (f"<b>Työaika:</b> {data.get('working_hours', '')}", styles['Normal'])
+                (f"<b>Työaika:</b> {safe.get('working_hours', '')}", styles['Normal'])
             ]),
             ("7. Vuosiloma", [
-                (f"<b>Vuosiloma määräytyy:</b> {data.get('annual_leave', '')}", styles['Normal'])
+                (f"<b>Vuosiloma määräytyy:</b> {safe.get('annual_leave', '')}", styles['Normal'])
             ]),
             ("8. Irtisanomisaika", [
-                (f"<b>Irtisanomisaika määräytyy:</b> {data.get('notice_period', '')}", styles['Normal'])
+                (f"<b>Irtisanomisaika määräytyy:</b> {safe.get('notice_period', '')}", styles['Normal'])
             ]),
         ]
         
         # Add collective agreement section only if checkbox is checked
         if data.get('has_collective_agreement', False):
             sections.append(("9. Sovellettava työehtosopimus", [
-                (f"<b>Työsuhteessa noudatetaan:</b> {data.get('collective_agreement', '')}", styles['Normal'])
+                (f"<b>Työsuhteessa noudatetaan:</b> {safe.get('collective_agreement', '')}", styles['Normal'])
             ]))
             muut_ehdot_number = "10"
         else:
@@ -876,7 +886,7 @@ class TyosopimusApp(QWidget):
         
         # Add the final section with correct numbering
         sections.append((f"{muut_ehdot_number}. Muut ehdot", [
-            (Paragraph(data.get('muut_ehdot', '').replace(chr(10), '<br/>'), styles['Normal']))
+            (Paragraph(safe.get('muut_ehdot', '').replace(chr(10), '<br/>'), styles['Normal']))
         ]))
 
         for title, items in sections:
@@ -896,7 +906,7 @@ class TyosopimusApp(QWidget):
         # Signatures table
         signature_data = [
             [Paragraph("_________________________", styles['Normal']), Paragraph("_________________________", styles['Normal'])],
-            [Paragraph(data.get('employer_name', 'Työnantaja'), styles['Normal']), Paragraph(data.get('employee_name', 'Työntekijä'), styles['Normal'])],
+            [Paragraph(safe.get('employer_name', 'Työnantaja'), styles['Normal']), Paragraph(safe.get('employee_name', 'Työntekijä'), styles['Normal'])],
             [Paragraph("(Työnantaja)", styles['Normal']), Paragraph("(Työntekijä)", styles['Normal'])]
         ]
         table = Table(signature_data, colWidths=[3*inch, 3*inch])

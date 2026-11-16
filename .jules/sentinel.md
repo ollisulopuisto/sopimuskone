@@ -1,0 +1,4 @@
+## 2026-11-16 - User-supplied contract data rendered as unescaped markup
+**Vulnerability:** Contract text entered by the user (names, addresses, free-form conditions) is interpolated directly into HTML rendered by the live preview and into reportlab Paragraph markup for PDF export without output encoding. Markup characters are interpreted as structure, so contract content can be visually spoofed or silently mangled.
+**Learning:** Both QTextEdit.setHtml() and reportlab Paragraph re-parse developer-built HTML/XML markup, so encoding must happen at the render layer, immediately before interpolation — not on input storage.
+**Prevention:** Escape all user-controlled values with html.escape() right before embedding them in HTML/markup, and convert newlines to `<br/>` only after escaping. Keep raw data in the data model and in conditional logic.

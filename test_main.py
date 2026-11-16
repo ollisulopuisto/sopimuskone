@@ -347,6 +347,62 @@ class TestTyosopimusApp(unittest.TestCase):
         self.assertEqual(data["temp_contract_reason"], "Sijaisuus")
         self.assertEqual(data["end_date"], "31.12.2025")
 
+    def test_update_preview_escapes_html_metacharacters(self):
+        """User-supplied HTML metacharacters must be escaped in the live preview.
+
+        Contract data is rendered with QTextEdit.setHtml(), so unescaped '<', '>',
+        '&' from user input would be interpreted as markup (spoofable contract
+        content, silently dropped text).
+        """
+        self.window.employee_name_input.setText("Matti <b>Virtanen</b>")
+        self.window.employer_name_input.setText("Yhtiö & Co")
+        self.window.job_title_input.setText("Kehittäjä <script>alert(1)</script>")
+        self.window.muut_ehdot_input.setPlainText("Ehto: x < y & z")
+        self.window.update_preview()
+
+        html = self.window.preview_area.toHtml()
+
+        # User markup is escaped, never rendered as HTML
+        self.assertIn("&lt;b&gt;Virtanen&lt;/b&gt;", html)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
+        self.assertIn("Yhtiö &amp; Co", html)
+        self.assertIn("Ehto: x &lt; y &amp; z", html)
+        # Raw user markup must not appear in the rendered HTML
+        self.assertNotIn("<b>Virtanen</b>", html)
+        self.assertNotIn("<script>alert(1)</script>", html)
+        # The underlying data still round-trips intact as plain text
+        plain = self.window.preview_area.toPlainText()
+        self.assertIn("Matti <b>Virtanen</b>", plain)
+        self.assertIn("Yhtiö & Co", plain)
+        self.assertIn("Ehto: x < y & z", plain)
+
+    def test_update_preview_converts_newlines_to_line_breaks(self):
+        """Multiline free-text must become <br /> after HTML escaping."""
+        self.window.muut_ehdot_input.setPlainText("Ehto 1\nEhto 2\nEhto 3")
+        self.window.update_preview()
+        html = self.window.preview_area.toHtml()
+        self.assertIn("Ehto 1<br />Ehto 2<br />Ehto 3", html)
+
+    @patch('main.QMessageBox.information')
+    @patch('main.SimpleDocTemplate')
+    @patch('main.QFileDialog.getSaveFileName')
+    def test_generate_pdf_escapes_html_metacharacters(
+        self, mock_get_save_file_name, mock_doc_class, mock_info
+    ):
+        """User-supplied data embedded in reportlab Paragraph markup must be escaped."""
+        mock_get_save_file_name.return_value = ("dummy.pdf", "PDF Files (*.pdf)")
+        mock_doc_instance = mock_doc_class.return_value
+        mock_doc_instance.build = MagicMock()
+        self.window.main_duties_input.setText("Koodausta <b>ja</b> suunnittelua")
+        self.window.generate_pdf()
+
+        story = mock_doc_instance.build.call_args[0][0]
+        duty_texts = [item.text for item in story
+                      if hasattr(item, "text") and "Koodausta" in item.text]
+        self.assertTrue(duty_texts, "main_duties paragraph not found in PDF story")
+        self.assertNotIn("<b>ja</b>", duty_texts[0])
+        self.assertIn("&lt;b&gt;ja&lt;/b&gt;", duty_texts[0])
+
     def test_new_salary_fields(self):
         """Test that the new salary fields work correctly."""
         # Set salary and basis
