@@ -570,8 +570,10 @@ class TyosopimusApp(QWidget):
                     except json.JSONDecodeError:
                         # Not a valid JSON file, skip silently
                         pass
-                    except (OSError, IOError, UnicodeDecodeError):
-                        # Other errors (file access, encoding), skip silently to avoid disrupting the app
+                    except (OSError, UnicodeDecodeError, RecursionError):
+                        # Other errors (file access, encoding, pathological
+                        # nesting in untrusted JSON), skip silently to avoid
+                        # disrupting the app
                         pass
         
         self.contract_selector.clear()
@@ -624,13 +626,20 @@ class TyosopimusApp(QWidget):
     def _get_sort_key(self, contract_name):
         """Get sort key for contract (timestamp if available, otherwise filename)."""
         from datetime import datetime
-        
+
         contract_data = self.contracts.get(contract_name, {})
-        
+
         # Try to get timestamp from created_at
         if 'created_at' in contract_data:
             try:
-                return datetime.fromisoformat(contract_data['created_at'])
+                created_at = datetime.fromisoformat(contract_data['created_at'])
+                # Untrusted contract files may mix timezone-aware and naive
+                # timestamps. Comparing them raises TypeError while sorting,
+                # which aborts startup, so normalize aware values to naive UTC.
+                offset = created_at.utcoffset()
+                if offset is not None:
+                    created_at = (created_at - offset).replace(tzinfo=None)
+                return created_at
             except (ValueError, TypeError):
                 pass
         
