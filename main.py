@@ -56,6 +56,20 @@ DEFAULT_NOTICE_PERIOD = "työsopimuslain mukaan"
 # Default collective agreement
 DEFAULT_COLLECTIVE_AGREEMENT = "mahdollinen työehtosopimus"
 
+# Contract JSON files are untrusted input (hand-edited, synced or downloaded).
+# Their fields are coerced to the expected types at the load boundary so a
+# malformed file cannot abort the app with a TypeError in a Qt slot.
+CONTRACT_TEXT_FIELDS = (
+    "employer_name", "employer_address", "employer_id",
+    "employee_name", "employee_address", "employee_id",
+    "contract_date", "start_date", "end_date", "temp_contract_reason",
+    "probation_period", "job_title", "main_duties", "work_location",
+    "salary", "salary_basis", "salary_payment_date", "working_hours",
+    "annual_leave", "notice_period", "collective_agreement", "muut_ehdot",
+    "display_name", "created_at",
+)
+CONTRACT_BOOL_FIELDS = ("is_temporary", "has_collective_agreement")
+
 
 class TyosopimusApp(QWidget):
     def __init__(self, contracts_file=None): # contracts_file is not used by save/load
@@ -541,6 +555,8 @@ class TyosopimusApp(QWidget):
                             
                             # Check if this looks like a contract file by checking for key fields
                             if self._is_contract_file(contract_data):
+                                # Validate types before the data reaches UI code
+                                contract_data = self._sanitize_contract(contract_data)
                                 # Use filename without .json as key, avoid duplicates
                                 contract_name = os.path.splitext(filename)[0]
                                 if contract_name not in self.contracts:
@@ -631,6 +647,21 @@ class TyosopimusApp(QWidget):
         # Fallback to filename as string (ensure consistent type)
         return datetime(1900, 1, 1)  # Use very old date for fallback to maintain datetime type
     
+    def _sanitize_contract(self, data):
+        """Coerce untrusted contract JSON fields to their expected types.
+
+        Values of the wrong type are replaced with a safe default (empty text,
+        False) so a malformed or hostile contract file cannot crash the app
+        when its values reach Qt setters or string operations.
+        """
+        for field in CONTRACT_TEXT_FIELDS:
+            if field in data and not isinstance(data[field], str):
+                data[field] = ""
+        for field in CONTRACT_BOOL_FIELDS:
+            if field in data and not isinstance(data[field], bool):
+                data[field] = False
+        return data
+
     def _is_contract_file(self, data):
         """
         Check if the JSON data represents a contract file by looking for key fields.

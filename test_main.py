@@ -307,6 +307,35 @@ class TestTyosopimusApp(unittest.TestCase):
         # Should only have one item when no contracts are saved
         self.assertEqual(self.window.contract_selector.count(), 1)
 
+    def test_malformed_contract_json_is_sanitized_on_load(self):
+        """A contract file with wrong-typed fields must not crash the app.
+
+        Loaded JSON is untrusted input; non-string values previously reached
+        Qt setters / string operations and aborted the app with a TypeError.
+        """
+        hostile = os.path.join(TEST_CONTRACTS_DIR, "hostile.json")
+        with open(hostile, "w", encoding="utf-8") as f:
+            json.dump({
+                "employee_name": 12345,
+                "employer_name": "Firma Oy",
+                "salary": 5,
+                "display_name": 99,
+                "has_collective_agreement": "yes",
+            }, f)
+
+        # load_contracts() fires the combo's currentIndexChanged slot, so a
+        # regression here aborts the process; this call is the regression gate.
+        self.window.load_contracts()
+
+        loaded = self.window.contracts.get("hostile")
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded["employee_name"], "")
+        self.assertEqual(loaded["salary"], "")
+        self.assertEqual(loaded["display_name"], "")
+        self.assertIs(loaded["has_collective_agreement"], False)
+        # Well-typed values are preserved untouched
+        self.assertEqual(loaded["employer_name"], "Firma Oy")
+
     def test_contract_type_radio_buttons(self):
         """Test the contract type radio button functionality (logic only, not widget visibility)."""
         # Initially, permanent should be checked, temporary unchecked
