@@ -75,6 +75,9 @@ class TyosopimusApp(QWidget):
     def __init__(self, contracts_file=None): # contracts_file is not used by save/load
         super().__init__()
         self.contracts = {}  # Stores loaded contract data
+        # Bulk field updates (clear/populate) suppress the live preview so the
+        # rich-text document is parsed once at the end instead of once per field.
+        self._preview_updates_suppressed = False
         
         if os.environ.get("TESTING") == "True":
             # During testing, use a temporary directory within the current working directory
@@ -421,6 +424,16 @@ class TyosopimusApp(QWidget):
         Populate all input fields from a contract data dictionary.
         :param data: dict of contract details
         """
+        # Batch the many field writes below: signals stay connected, but the
+        # preview is rendered only once at the end (see update_preview).
+        self._preview_updates_suppressed = True
+        try:
+            self._populate_fields(data)
+        finally:
+            self._preview_updates_suppressed = False
+        self.update_preview()
+
+    def _populate_fields(self, data):
         self.employer_name_input.setText(data.get("employer_name", ""))
         self.employer_address_input.setText(data.get("employer_address", ""))
         self.employer_id_input.setText(data.get("employer_id", ""))
@@ -466,7 +479,6 @@ class TyosopimusApp(QWidget):
         self.collective_agreement_checkbox.setChecked(data.get("has_collective_agreement", False))
         self.toggle_collective_agreement()  # Update visibility based on checkbox state
         self.muut_ehdot_input.setPlainText(data.get("muut_ehdot", ""))
-        self.update_preview()
 
     def save_contract(self):
         """
@@ -709,6 +721,16 @@ class TyosopimusApp(QWidget):
         """
         Clear all input fields and reset to default values.
         """
+        # Batch the resets below: each setter would otherwise trigger a full
+        # HTML re-parse of the preview, so render only the final state.
+        self._preview_updates_suppressed = True
+        try:
+            self._clear_fields()
+        finally:
+            self._preview_updates_suppressed = False
+        self.update_preview()
+
+    def _clear_fields(self):
         for field in [
             self.employer_name_input, self.employer_address_input, self.employer_id_input,
             self.employee_name_input, self.employee_address_input, self.employee_id_input,
@@ -732,12 +754,15 @@ class TyosopimusApp(QWidget):
         self.collective_agreement_input.setText("mahdollinen työehtosopimus")
         self.collective_agreement_checkbox.setChecked(False)
         self.toggle_collective_agreement()  # Hide collective agreement field
-        self.update_preview()
 
     def update_preview(self):
         """
         Update the live HTML preview area with the current contract data.
         """
+        # Skip intermediate renders while fields are being set in bulk; the
+        # caller re-renders once when the whole batch is applied.
+        if self._preview_updates_suppressed:
+            return
         data = self.get_contract_data()
         # Escape all user-supplied content before embedding it in HTML.
         # QTextEdit.setHtml() re-parses developer-built HTML, so unescaped

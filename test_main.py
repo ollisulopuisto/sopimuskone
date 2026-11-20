@@ -481,5 +481,27 @@ class TestTyosopimusApp(unittest.TestCase):
         self.assertIn("Palkan määräytymisen peruste:", preview_text)
 
 
+    def test_bulk_field_updates_render_preview_once(self):
+        """Bulk field updates must render the preview once, not once per field."""
+        with patch.object(self.window.preview_area, "setHtml") as mock_set_html:
+            self.window.clear_fields()
+            self.assertEqual(mock_set_html.call_count, 1)
+
+        data = {
+            "employee_name": "Matti Meikäläinen",
+            "employer_name": "Acme Oy",
+            "muut_ehdot": "Eka rivi\nToka rivi",
+        }
+        with patch.object(self.window.preview_area, "setHtml") as mock_set_html:
+            self.window.populate_fields(data)
+            self.assertEqual(mock_set_html.call_count, 1)
+
+        # The single render must reflect the final field values.
+        self.window.populate_fields(data)
+        preview_text = self.window.preview_area.toPlainText()
+        self.assertIn("Matti Meikäläinen", preview_text)
+        self.assertIn("Eka rivi", preview_text)
+
+
 if __name__ == '__main__':
     unittest.main()
