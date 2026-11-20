@@ -307,6 +307,67 @@ class TestTyosopimusApp(unittest.TestCase):
         # Should only have one item when no contracts are saved
         self.assertEqual(self.window.contract_selector.count(), 1)
 
+    def test_malformed_contract_json_is_sanitized_on_load(self):
+        """A contract file with wrong-typed fields must not crash the app.
+
+        Loaded JSON is untrusted input; non-string values previously reached
+        Qt setters / string operations and aborted the app with a TypeError.
+        """
+        hostile = os.path.join(TEST_CONTRACTS_DIR, "hostile.json")
+        with open(hostile, "w", encoding="utf-8") as f:
+            json.dump({
+                "employee_name": 12345,
+                "employer_name": "Firma Oy",
+                "salary": 5,
+                "display_name": 99,
+                "has_collective_agreement": "yes",
+            }, f)
+
+        # load_contracts() fires the combo's currentIndexChanged slot, so a
+        # regression here aborts the process; this call is the regression gate.
+        self.window.load_contracts()
+
+        loaded = self.window.contracts.get("hostile")
+        self.assertIsNotNone(loaded)
+        self.assertEqual(loaded["employee_name"], "")
+        self.assertEqual(loaded["salary"], "")
+        self.assertEqual(loaded["display_name"], "")
+        self.assertIs(loaded["has_collective_agreement"], False)
+        # Well-typed values are preserved untouched
+        self.assertEqual(loaded["employer_name"], "Firma Oy")
+
+    def test_mixed_timezone_created_at_does_not_abort_contract_sorting(self):
+        """Untrusted created_at values must never break startup sorting.
+
+        Contract files are untrusted, so they can mix timezone-aware and naive
+        ISO timestamps. Comparing those raises TypeError inside load_contracts()
+        and prevents the app from starting at all.
+        """
+        for name, stamp in (("naive", "2024-01-01T00:00:00"),
+                            ("aware", "2024-02-01T00:00:00+02:00")):
+            with open(os.path.join(TEST_CONTRACTS_DIR, name + ".json"), "w",
+                      encoding="utf-8") as f:
+                json.dump({"employee_name": name, "created_at": stamp}, f)
+
+        self.window.load_contracts()
+
+        self.assertIn("naive", self.window.contracts)
+        self.assertIn("aware", self.window.contracts)
+        # Newest first: the aware timestamp is still the later of the two.
+        self.assertIn("aware", self.window.contract_selector.itemText(1))
+
+    def test_deeply_nested_contract_json_is_skipped(self):
+        """Pathologically nested JSON must be skipped, not abort startup."""
+        with open(os.path.join(TEST_CONTRACTS_DIR, "deep.json"), "w",
+                  encoding="utf-8") as f:
+            f.write('{"employee_name": "Deep", "x": '
+                    + "[" * 200000 + "]" * 200000 + "}")
+
+        self.window.load_contracts()
+
+        self.assertNotIn("deep", self.window.contracts)
+        self.assertEqual(self.window.contract_selector.count(), 1)
+
     def test_contract_type_radio_buttons(self):
         """Test the contract type radio button functionality (logic only, not widget visibility)."""
         # Initially, permanent should be checked, temporary unchecked
